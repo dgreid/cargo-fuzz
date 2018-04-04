@@ -116,6 +116,9 @@ Some useful options (to be used as `cargo fuzz run fuzz_target -- <options>`) in
  - `-only_ascii`: Only provide ASCII input
  - `-dict=<file>`: Use a keyword dictionary from specified file. See http://llvm.org/docs/LibFuzzer.html#dictionaries")
         )
+        .subcommand(fuzz_subcommand("build")
+            .about("Build a fuzz target")
+        )
         .subcommand(fuzz_subcommand("cmin")
              .about("Corpus minifier")
              .arg(Arg::with_name("CORPUS")
@@ -151,6 +154,8 @@ Some useful options (to be used as `cargo fuzz run fuzz_target -- <options>`) in
             .and_then(|p| p.list_targets()),
         ("run", matches) => FuzzProject::new()
             .and_then(|p| p.exec_fuzz(matches.expect("arguments present"))),
+        ("build", matches) => FuzzProject::new()
+            .and_then(|p| p.build_fuzz(matches.expect("arguments present"))),
         ("cmin", matches) => FuzzProject::new()
             .and_then(|p| p.exec_cmin(matches.expect("arguments present"))),
         ("tmin", matches) => FuzzProject::new()
@@ -372,16 +377,22 @@ impl FuzzProject {
         Ok(cmd)
     }
 
-    /// Fuzz a given fuzz target
-    fn exec_fuzz<'a>(&self, args: &ArgMatches<'a>) -> Result<()> {
-        let target = get_target(args)?;
-
+    /// Builds the given fuzz target
+    fn build_fuzz<'a>(&self, args: &ArgMatches<'a>) -> Result<()> {
         let mut cmd = self.cargo("build", args)?;
         let status = cmd.status()
             .chain_err(|| format!("could not execute: {:?}", cmd))?;
         if !status.success() {
             return Err(format!("could not build fuzz script: {:?}", cmd).into());
         }
+        Ok(())
+    }
+
+    /// Fuzz a given fuzz target
+    fn exec_fuzz<'a>(&self, args: &ArgMatches<'a>) -> Result<()> {
+        let target = get_target(args)?;
+
+        self.build_fuzz(args)?;
 
         let mut cmd = self.cmd(args)?;
 
